@@ -1,4 +1,4 @@
-use super::method::Method;
+use super::method::{Method, MethodError};
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
@@ -29,13 +29,40 @@ impl TryFrom<&[u8]> for Request {
         let request = str::from_utf8(buf)?;
 
         let (method, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
-        let (path, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
+        let (mut path, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
         let (protocol, _) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
 
         if protocol != "HTTP/1.1" {
             return Err(ParseError::InvalidProtocol);
         }
-        unimplemented!();
+
+        let method: Method = method.parse()?;
+
+
+        let mut query_str = None;
+        /* other ways to parse query string
+        match path.find('?') {
+            None => {}
+            Some(index) => {
+                query_str = Some(&path[index + 1..]);
+                path = &path[..index]
+            }
+        }
+
+        let q = path.find('?');
+        if q.is_some() {
+            let i = q.unwrap();
+            query_str = Some(&path[index + 1..]);
+            path = &path[..index];
+        }
+        */
+
+        if let Some(index) = path.find('?') {
+            query_str = Some(&path[index + 1..]);
+            path = &path[..index];
+        }
+
+        unimplemented!()
     }
 }
 
@@ -75,6 +102,10 @@ impl From<Utf8Error> for ParseError {
     fn from(_: Utf8Error) -> Self {
         Self::InvalidEncoding
     }
+}
+
+impl From<MethodError> for ParseError {
+    fn from(_: MethodError) -> Self { Self::InvalidMethodError }
 }
 
 impl ParseError {
